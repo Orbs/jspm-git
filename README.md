@@ -42,7 +42,17 @@ jspm install abc:projname/reponame
 To do this, you would create your own endpoint package that extends this package:
 
 ```javascript
-\\ TODO
+var util = require('util');
+var GitLocation = require('jspm-git');
+
+var AbcLocation = function(options) {
+  options = options || {};
+  options.hostName = 'code.abcwidgets.com/';
+  GitLocation.call(this, options);
+}
+util.inherits(AbcLocation, GitLocation);
+
+module.exports = AbcLocation;
 ```
 
 Then install the package into your application:

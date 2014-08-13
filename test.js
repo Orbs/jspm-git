@@ -1,19 +1,17 @@
-var Nike = require('./index');
+var Git = require('./index');
 
-// git ls-remote ssh://stash.nikedev.com/nid/builder.git refs/tags/* refs/heads/*
-// git ls-remote ssh://stash.nikedev.com/~tmil11/id-vagrant.git refs/tags/* refs/heads/*
-
-nike = new Nike({
+git = new Git({
   log: true,
-  tmpDir: '.',
+  tmpDir: '.'
 });
 
-nike.getVersions('~tmil11/idicons', function(versions) {
+git.getVersions('bitbucket.com/dgkang/node-buffer', function(versions) {
   console.log('versions:',versions);
 });
 
-nike.download('~tmil11/idicons', '0.1.1', '', 'test-repo', function() {
+git.download('bitbucket.com/dgkang/node-buffer', 'master', '', 'test-repo', function() {
   console.log('done');
 }, function(err) {
   console.log(err);
 });
+

@@ -1,17 +1,13 @@
 // Possibly look at component remote for Bitbucket for inspiration:
 // https://github.com/component/remotes.js/blob/master/lib/remotes/bitbucket.js 
 
-// Download all files in repo into a tar file
-// git archive --format=tar --remote=ssh://stash.nikedev.com/~tmil11/idicons.git master > foo.tgz
-
-// Download all files in icons folder exploded to the local directory
-// git archive --format=tar --remote=ssh://stash.nikedev.com/~tmil11/idicons.git master:icons | tar xf -
-
 // Endpoint for Bower, seven months old, but tests included:
 // https://github.com/matthewp/jspm-bower
 
 // Endpoint for gist:
 // https://github.com/matthewp/gist
+
+'use strict';
 
 var exec = require('child_process').exec;
 var gitdownload = require('git-download');
@@ -24,7 +20,7 @@ var GitLocation = function(options) {
     killSignal: 'SIGKILL'
   };
 
-  this.hostName = this.hostName || '';
+  this.hostName = options.hostName || '';
 }
 
 GitLocation.prototype = {
