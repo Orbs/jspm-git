@@ -24,7 +24,7 @@ var GitLocation = function(options) {
     killSignal: 'SIGKILL'
   };
 
-  this.hostName = '';
+  this.hostName = this.hostName || '';
 }
 
 GitLocation.prototype = {
