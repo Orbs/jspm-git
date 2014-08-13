@@ -23,5 +23,7 @@
   "dependencies": {
     "git-download": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "lodash": "^2.4.1"
+  }
 }

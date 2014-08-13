@@ -7,10 +7,17 @@
 // Download all files in icons folder exploded to the local directory
 // git archive --format=tar --remote=ssh://stash.nikedev.com/~tmil11/idicons.git master:icons | tar xf -
 
-var exec = require('child_process').exec;
-var download = require('git-download');
+// Endpoint for Bower, seven months old, but tests included:
+// https://github.com/matthewp/jspm-bower
 
-var StashLocation = function(options) {
+// Endpoint for gist:
+// https://github.com/matthewp/gist
+
+var exec = require('child_process').exec;
+var gitdownload = require('git-download');
+var _ = require('lodash');
+
+var GitLocation = function(options) {
   this.log = options.log === false ? false : true;
   this.execOpt = {
     cwd: options.tmpDir,
@@ -18,10 +25,10 @@ var StashLocation = function(options) {
     killSignal: 'SIGKILL'
   };
 
-  this.hostName = 'ssh://'+options.hostName+'/';
+  this.hostName = '';
 }
 
-StashLocation.prototype = {
+GitLocation.prototype = {
 
   degree: 2,
 
@@ -29,26 +36,36 @@ StashLocation.prototype = {
   // assumed that this is run after getVersions so the repo exists
   download: function(repo, version, hash, outDir, callback, errback) {
     if (this.log) {
-      console.log(new Date() + ': Requesting package stash: ' + repo);
+      console.log(new Date() + ': Requesting git package: ' + repo);
     }
 
-    download({
-      source: this.hostName + repo + '.git',
-      dest: outDir,
-      branch: version
-    }, function(err, tarfile) {
-      if (err) {
-        errback && errback(err);
+    this.getVersions(repo, function(versions) {
+      if (!versions[version]) {
+        errback && errback('Repository does not contain "'+version+'" tag or branch');
         return;
       }
-      callback && callback();
-    });
 
+      gitdownload({
+        source: 'ssh://' + this.hostName + repo + '.git',
+        tmpDir: this.execOpt.cwd,
+        dest: outDir,
+        branch: version
+      }, function(err, tarfile) {
+        if (err) {
+          errback && errback(err);
+          return;
+        }
+        callback && callback();
+      });    
+    }.bind(this), function(err) {  
+      errback && errback(err);
+    });
+  
   },
 
   getVersions: function(repo, callback, errback) {
 
-    var command = 'git ls-remote ' + this.hostName + repo + '.git refs/tags/* refs/heads/*';
+    var command = 'git ls-remote ssh://' + this.hostName + repo + '.git refs/tags/* refs/heads/*';
     
     exec(command, this.execOpt, function(err, stdout, stderr) {
 
@@ -90,4 +107,4 @@ StashLocation.prototype = {
   }
 };
 
-module.exports = StashLocation;
+module.exports = GitLocation;
