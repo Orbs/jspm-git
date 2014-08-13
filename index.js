@@ -15,7 +15,6 @@
 
 var exec = require('child_process').exec;
 var gitdownload = require('git-download');
-var _ = require('lodash');
 
 var GitLocation = function(options) {
   this.log = options.log === false ? false : true;

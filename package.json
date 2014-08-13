@@ -1,29 +1,26 @@
 {
-  "name": "jspm-stash",
+  "name": "jspm-git",
   "version": "0.1.0",
-  "description": "JSPM endpoint for Atlassian Stash",
+  "description": "JSPM endpoint for git repositories",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/Orbs/jspm-stash.git"
+    "url": "git://github.com/Orbs/jspm-git.git"
   },
   "author": "Tauren Mills",
   "bugs": {
-    "url": "https://github.com/Orbs/jspm-stash/issues"
+    "url": "https://github.com/Orbs/jspm-git/issues"
   },
   "keywords": [
     "git",
     "archive"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/Orbs/jspm-stash",
+  "homepage": "https://github.com/Orbs/jspm-git",
   "dependencies": {
     "git-download": "latest"
-  },
-  "devDependencies": {
-    "lodash": "^2.4.1"
   }
 }
