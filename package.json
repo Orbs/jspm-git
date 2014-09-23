@@ -26,5 +26,7 @@
     "rsvp": "^3.0.13",
     "temp": "^0.8.1"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "semver": "^3.0.1"
+  }
 }

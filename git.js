@@ -15,8 +15,10 @@ var rimraf = require('rimraf');
 var ncp = require('ncp').ncp;
 var fs = require('fs');
 var temp = require('temp');
+var semver = require('semver');
 
 var logging = false;
+var vPrefixVersions = [];
 
 var logMsg = function(msg) {
   if (logging) {
@@ -25,7 +27,7 @@ var logMsg = function(msg) {
 };
 
 var createGitUrl = function(basepath, repo, reposuffix) {
-  return basepath + repo + reposuffix;  
+  return basepath + repo + reposuffix;
 };
 
 var exportGitRepo = function(repoDir, branch, url, execOpt) {
@@ -51,7 +53,7 @@ var exportGitRepo = function(repoDir, branch, url, execOpt) {
         });
       }
     });
-  });    
+  });
 };
 
 var readPackageJSON = function(repoDir) {
@@ -100,7 +102,7 @@ var createTempDir = function() {
         reject();
       } else {
         resolve(tempDirPath);
-      } 
+      }
     });
   });
 };
@@ -125,20 +127,89 @@ var GitLocation = function(options) {
 
 GitLocation.prototype = {
 
+  parse: function(name) {
+    var parts = name.split('/');
+    var packageName = parts.splice(0, 2).join('/');
+    return {
+      package: packageName,
+      path: parts.join('/')
+    };
+  },
+
+  // return values
+  // { versions: { versionhash } }
+  // { redirect: 'newrepo' }
+  // { notfound: true }
+  lookup: function(repo) {
+    var self = this;
+    return new Promise(function(resolve, reject) {
+
+      var versions, cancel,
+          url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix);
+
+      exec('git ls-remote ' + url + ' refs/tags/* refs/heads/*', self.execOpt, function(err, stdout, stderr) {
+        if (cancel)
+          return;
+
+        if (err) {
+          if ((err + '').indexOf('Repository not found') == -1) {
+            cancel = true;
+            reject(stderr);
+          }
+          return;
+        }
+
+        versions = {};
+        var refs = stdout.split('\n');
+        for (var i = 0; i < refs.length; i++) {
+          if (!refs[i])
+            continue;
+
+          var hash = refs[i].substr(0, refs[i].indexOf('\t'));
+          var refName = refs[i].substr(hash.length + 1);
+          var version;
+
+          if (refName.substr(0, 11) == 'refs/heads/')
+            version = refName.substr(11);
+
+          else if (refName.substr(0, 10) == 'refs/tags/') {
+            if (refName.substr(refName.length - 3, 3) == '^{}')
+              version = refName.substr(10, refName.length - 13);
+            else
+              version = refName.substr(10);
+          }
+
+          if (version.substr(0, 1) == 'v' && semver.valid(version.substr(1))) {
+            version = version.substr(1);
+            // note when we remove a "v" which versions we need to add it back to
+            // to work out the tag version again
+            vPrefixVersions.push(repo + '@' + version);
+          }
+
+          versions[version] = hash;
+        }
+
+        resolve({ versions: versions });
+      });
+    });
+  },
+
   // always an exact version
   // assumed that this is run after getVersions so the repo exists
-  download: function(repo, version, hash, outDir, callback, errback) {
+  download: function(repo, version, hash, outDir) {
 
     var url, tempRepoDir, packageJSONData, self = this;
 
-    logMsg('Downloading: ' + repo + '@' + version);
+    if (vPrefixVersions.indexOf(repo + '@' + version) != -1) {
+      version = 'v' + version;
+    }
 
     // Automatically track and cleanup files at exit
     temp.track();
 
     url = createGitUrl(this.options.baseurl, repo, this.options.reposuffix);
 
-    createTempDir().then(function(tempDir) {
+    return createTempDir().then(function(tempDir) {
       tempRepoDir = tempDir;
       return exportGitRepo(tempRepoDir, version, url, self.execOpt);
     }).then(function() {
@@ -147,55 +218,7 @@ GitLocation.prototype = {
       packageJSONData = data;
       return moveRepoToOutDir(tempRepoDir, outDir);
     }).then(function() {
-      callback(packageJSONData);
-    }).catch(function(err) {
-      errback(err);
-    });
-  },
-
-  getVersions: function(repo, callback, errback) {
-
-    var url, command;
-
-    url = createGitUrl(this.options.baseurl, repo, this.options.reposuffix);
-    command = 'git ls-remote ' + url + ' refs/tags/* refs/heads/*';
-    
-    exec(command, this.execOpt, function(err, stdout, stderr) {
-
-      if (err) {
-        if ((err + '').indexOf('Repository does not exist') != -1) {
-          callback && callback();
-          return;
-        }
-        errback && errback(stderr);
-        return;
-      }
-
-      var versions = {};
-      var refs = stdout.split('\n');
-
-      for (var i = 0, len = refs.length; i < len; i++) {
-        if (!refs[i]) {
-          continue;
-        }
-        
-        var hash = refs[i].substr(0, refs[i].indexOf('\t'));
-        var refName = refs[i].substr(hash.length + 1);
-
-        if (refName.substr(0, 11) == 'refs/heads/') {
-          versions[refName.substr(11)] = hash;
-        }
-        else if (refName.substr(0, 10) == 'refs/tags/') {
-          if (refName.substr(refName.length - 3, 3) == '^{}') {
-            versions[refName.substr(10, refName.length - 13)] = hash;
-          }
-          else {
-            versions[refName.substr(10)] = hash;
-          }
-        }
-      }
-
-      callback && callback(versions);
+      return packageJSONData;
     });
   }
 };
