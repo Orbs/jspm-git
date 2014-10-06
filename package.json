@@ -1,8 +1,8 @@
 {
   "name": "jspm-git",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "JSPM endpoint for git repositories",
-  "main": "index.js",
+  "main": "git.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -21,6 +21,12 @@
   "license": "MIT",
   "homepage": "https://github.com/Orbs/jspm-git",
   "dependencies": {
-    "git-download": "latest"
+    "ncp": "^0.6.0",
+    "rimraf": "^2.2.8",
+    "rsvp": "^3.0.13",
+    "temp": "^0.8.1"
+  },
+  "devDependencies": {
+    "semver": "^3.0.1"
   }
 }

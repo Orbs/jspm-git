@@ -1,15 +1,18 @@
-var Git = require('./index');
+var Git = require('./git');
 
 git = new Git({
   log: true,
-  tmpDir: '.'
+  tmpDir: 'tmpDir',
+  timeout: 5,
+  baseurl: 'https://github.com/'
 });
 
-git.getVersions('bitbucket.com/dgkang/node-buffer', function(versions) {
-  console.log('versions:',versions);
+git.getVersions('angular/bower-angular', function(versions) {
+  console.log('versions:', versions);
 });
 
-git.download('bitbucket.com/dgkang/node-buffer', 'master', '', 'test-repo', function() {
+//dgkang/node-buffer
+git.download('angular/bower-angular', 'v1.3.0-build.51+sha.e888dde', '', 'distDir', function() {
   console.log('done');
 }, function(err) {
   console.log(err);
