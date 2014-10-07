@@ -2,7 +2,7 @@
 /**
 * @license jspm-git
 * Copyright (c) 2014 Tauren Mills, contributors
-* JSPM endpoint for Git Repositories
+* jspm endpoint for Git Repositories
 * License: MIT
 */
 
@@ -16,6 +16,7 @@ var ncp = require('ncp').ncp;
 var fs = require('fs');
 var temp = require('temp');
 var semver = require('semver');
+var urljoin = require('url-join');
 
 var logging = false;
 var vPrefixVersions = [];
@@ -27,7 +28,7 @@ var logMsg = function(msg) {
 };
 
 var createGitUrl = function(basepath, repo, reposuffix) {
-  return basepath + repo + reposuffix;
+  return urljoin(basepath, repo + reposuffix);
 };
 
 var exportGitRepo = function(repoDir, branch, url, execOpt) {
@@ -124,6 +125,43 @@ var GitLocation = function(options) {
   this.options = options;
 };
 
+// static configuration function
+GitLocation.configure = function(config, ui) {
+
+  return Promise.resolve(ui.input('Enter the base URL of your git server e.g. https://code.mycompany.com/git/', null))
+  .then(function(baseurl) {
+    if (!baseurl || baseurl === '') {
+      ui.log('warn', 'Invalid base URL was entered');
+      return Promise.reject();
+    }
+    config.baseurl = baseurl;
+  })
+  .then(function() {
+    return Promise.resolve(ui.confirm('Would you like to use the default git repository suffix (.git)?', true))
+    .then(function(usedefaultsuffix) {
+      if(usedefaultsuffix) {
+        // Leave the reposuffix config empty in order to use the default configuration of the endpoint
+        return;
+      }
+      return Promise.resolve(ui.confirm('Would you like to set an empty git repository suffix?', false))
+      .then(function(setemptysuffix) {
+        if (setemptysuffix) {
+          // Set an empty repository suffix
+          config.reposuffix = '';
+          return;
+        }
+        return Promise.resolve(ui.input('Enter the git repository suffix', '.git'))
+        .then(function(reposuffix) {
+          // Use the entered suffix for the endpoint
+          config.reposuffix = reposuffix;
+        });
+      });
+    });
+  })
+  .then(function() {
+    return config;
+  });
+};
 
 GitLocation.prototype = {
 
