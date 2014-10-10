@@ -31,28 +31,64 @@ var createGitUrl = function(basepath, repo, reposuffix) {
   return urljoin(basepath, repo + reposuffix);
 };
 
-var exportGitRepo = function(repoDir, branch, url, execOpt) {
-
-  var command = 'git clone -b ' + branch + ' --depth 1 --single-branch ' + url + ' ' + repoDir;
-
+var getGitVersion = function() {
   return new Promise(function(resolve, reject) {
-    exec(command, execOpt, function(err, stdout, stderr) {
+    exec('git --version', null, function(err, stdout, stderr) {
+      var versionArr;
       if (err) {
-        logMsg('Error while cloning git branch: ' + stderr);
-        rimraf(repoDir, function() {
-          reject(stderr);
-        });
+        logMsg('Error while reading our the Git version: ' + stderr);
+        reject(stderr);
       } else {
-        // Remove the .git folder
-        rimraf(path.join(repoDir, '.git'), function(err) {
-          if (err) {
-            logMsg('Error while removing the .git folder: ' + err);
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
+        versionArr = stdout.match(/\d.\d.\d/);
+        if (versionArr.length === 1) {
+          resolve(versionArr[0]);
+        } else {
+          logMsg('Error while parsing the Git version');
+          reject();
+        }
       }
+    });
+  });
+};
+
+var cloneGitRepo = function(repoDir, branch, url, execOpt) {
+  return getGitVersion().
+  then(function(gitVersion) {
+    return new Promise(function(resolve, reject) {
+      var command;
+      // Parameter --single-branch is only supported from Git version 1.7.10 upwards
+      if (semver.lt(gitVersion, '1.7.10')) {
+        command = 'git clone -b ' + branch + ' --depth 1 ' + url + ' ' + repoDir;
+      } else {
+        command = 'git clone -b ' + branch + ' --depth 1 --single-branch ' + url + ' ' + repoDir;
+      }
+      exec(command, execOpt, function(err, stdout, stderr) {
+        if (err) {
+          logMsg('Error while cloning the git branch: ' + stderr);
+          rimraf(repoDir, function() {
+            reject(stderr);
+          });
+        } else {
+          resolve();
+        }
+      });
+    });
+  });
+};
+
+var exportGitRepo = function(repoDir, branch, url, execOpt) {
+  return cloneGitRepo(repoDir, branch, url, execOpt).
+  then(function() {
+    return new Promise(function(resolve, reject) {
+      // Remove the .git folder
+      rimraf(path.join(repoDir, '.git'), function(err) {
+        if (err) {
+          logMsg('Error while removing the .git folder: ' + err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
   });
 };
