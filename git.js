@@ -294,6 +294,13 @@ GitLocation.prototype = {
     }).then(function() {
       return packageJSONData;
     });
+  },
+
+  // sync function to clean up any tmp files / store save caches etc
+  dispose: function() {
+
+    // temp folder that has been created during download will be automaically
+    // removed at exit due the call of temp.track();
   }
 };
 
