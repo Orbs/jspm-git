@@ -22,10 +22,10 @@
   "license": "MIT",
   "homepage": "https://github.com/Orbs/jspm-git",
   "dependencies": {
-    "ncp": "^0.6.0",
+    "ncp": "^1.0.1",
     "rimraf": "^2.2.8",
-    "rsvp": "^3.0.13",
-    "semver": "^3.0.1",
+    "rsvp": "^3.0.14",
+    "semver": "^4.1.0",
     "temp": "^0.8.1",
     "url-join": "0.0.1"
   },
