@@ -244,20 +244,20 @@ GitLocation.prototype = {
           var version;
 
           if (refName.substr(0, 11) == 'refs/heads/')
-            version = refName.substr(11);
+            version = '#' + refName.substr(11);
 
           else if (refName.substr(0, 10) == 'refs/tags/') {
             if (refName.substr(refName.length - 3, 3) == '^{}')
               version = refName.substr(10, refName.length - 13);
             else
               version = refName.substr(10);
-          }
 
-          if (version.substr(0, 1) == 'v' && semver.valid(version.substr(1))) {
-            version = version.substr(1);
-            // note when we remove a "v" which versions we need to add it back to
-            // to work out the tag version again
-            vPrefixVersions.push(repo + '@' + version);
+            if (version.substr(0, 1) == 'v' && semver.valid(version.substr(1))) {
+              version = version.substr(1);
+              // note when we remove a "v" which versions we need to add it back to
+              // to work out the tag version again
+              vPrefixVersions.push(repo + '@' + version);
+            }
           }
 
           versions[version] = hash;
