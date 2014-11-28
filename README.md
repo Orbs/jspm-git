@@ -5,6 +5,9 @@ A generic jspm endpoint for Git Repositories.
 
 jspm-git is based on Guy Bedford's [github endpoint for jspm](https://github.com/jspm/github/).
 
+## Compatibility
+The most recent release of jspm-git is always compatible to the most recent release of jspm. For different jspm releases please have a look on the [Jspm Compatibility Wiki](https://github.com/Orbs/jspm-git/wiki/Jspm-Compatibility) to find a compatible jspm-git release.
+
 ## Installation
 
 Install the endpoint globally or locally within your project:
