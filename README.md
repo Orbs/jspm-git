@@ -1,7 +1,9 @@
 jspm-git
 ==========
 
-jspm endpoint for Git Repositories
+A generic jspm endpoint for Git Repositories.
+
+jspm-git is based on Guy Bedford's [github endpoint for jspm](https://github.com/jspm/github/).
 
 ## Installation
 
