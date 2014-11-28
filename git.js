@@ -3,6 +3,7 @@
 * @license jspm-git
 * Copyright (c) 2014 Tauren Mills, contributors
 * jspm endpoint for Git Repositories
+* (based on Guy Bedford's github endpoint for jspm https://github.com/jspm/github)
 * License: MIT
 */
 
@@ -19,7 +20,6 @@ var semver = require('semver');
 var urljoin = require('url-join');
 
 var logging = false;
-var vPrefixVersions = [];
 
 var logMsg = function(msg) {
   if (logging) {
@@ -212,25 +212,20 @@ GitLocation.prototype = {
 
   // return values
   // { versions: { versionhash } }
-  // { redirect: 'newrepo' }
   // { notfound: true }
   lookup: function(repo) {
     var self = this;
     return new Promise(function(resolve, reject) {
 
-      var versions, cancel,
+      var versions,
           url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix);
 
       exec('git ls-remote ' + url + ' refs/tags/* refs/heads/*', self.execOpt, function(err, stdout, stderr) {
-        if (cancel)
-          return;
-
         if (err) {
-          if ((err + '').indexOf('Repository not found') == -1) {
-            cancel = true;
+          if ((err + '').indexOf('Repository not found') == -1)
             reject(stderr);
-          }
-          return;
+          else
+            resolve({ notfound: true });
         }
 
         versions = {};
@@ -242,9 +237,12 @@ GitLocation.prototype = {
           var hash = refs[i].substr(0, refs[i].indexOf('\t'));
           var refName = refs[i].substr(hash.length + 1);
           var version;
+          var versionObj = { hash: hash, meta: {} };
 
-          if (refName.substr(0, 11) == 'refs/heads/')
-            version = '#' + refName.substr(11);
+          if (refName.substr(0, 11) == 'refs/heads/') {
+            version = refName.substr(11);
+            versionObj.exactOnly = true;
+          }
 
           else if (refName.substr(0, 10) == 'refs/tags/') {
             if (refName.substr(refName.length - 3, 3) == '^{}')
@@ -256,11 +254,11 @@ GitLocation.prototype = {
               version = version.substr(1);
               // note when we remove a "v" which versions we need to add it back to
               // to work out the tag version again
-              vPrefixVersions.push(repo + '@' + version);
+              versionObj.meta.vPrefix = true;
             }
           }
 
-          versions[version] = hash;
+          versions[version] = versionObj;
         }
 
         resolve({ versions: versions });
@@ -270,13 +268,12 @@ GitLocation.prototype = {
 
   // always an exact version
   // assumed that this is run after getVersions so the repo exists
-  download: function(repo, version, hash, outDir) {
+  download: function(repo, version, hash, meta, outDir) {
 
     var url, tempRepoDir, packageJSONData, self = this;
 
-    if (vPrefixVersions.indexOf(repo + '@' + version) != -1) {
+    if (meta.vPrefix)
       version = 'v' + version;
-    }
 
     // Automatically track and cleanup files at exit
     temp.track();
