@@ -148,6 +148,11 @@ var GitLocation = function(options) {
 
   logging = options.log === false ? false : true;
 
+  if (!semver.satisfies(options.apiVersion + '.0', '^1.0')) {
+    throw 'Current jspm-git version isn\'t compatible to the jspm Endpoint API v' + options.apiVersion + '\n' +
+	'Please update or install a compatible version of jspm-git.';
+  }
+
   this.execOpt = {
     cwd: options.tmpDir,
     timeout: options.timeout * 1000,
