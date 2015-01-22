@@ -58,9 +58,9 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt) {
       var command;
       // Parameter --single-branch is only supported from Git version 1.7.10 upwards
       if (semver.lt(gitVersion, '1.7.10')) {
-        command = 'git clone -b ' + branch + ' --depth 1 ' + url + ' ' + repoDir;
+        command = 'git clone -b ' + branch + ' ' + url + ' ' + repoDir;
       } else {
-        command = 'git clone -b ' + branch + ' --depth 1 --single-branch ' + url + ' ' + repoDir;
+        command = 'git clone -b ' + branch + ' --single-branch ' + url + ' ' + repoDir;
       }
       exec(command, execOpt, function(err, stdout, stderr) {
         if (err) {
