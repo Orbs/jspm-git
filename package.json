@@ -24,11 +24,11 @@
   "dependencies": {
     "ncp": "^1.0.1",
     "rimraf": "^2.2.8",
-    "rsvp": "^3.0.14",
-    "semver": "^4.1.0",
+    "rsvp": "^3.0.16",
+    "semver": "^4.2.0",
     "temp": "^0.8.1",
-    "url-join": "0.0.1"
+    "url-join": "0.0.1",
+    "which": "^1.0.8"
   },
-  "devDependencies": {
-  }
+  "devDependencies": {}
 }

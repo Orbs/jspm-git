@@ -18,6 +18,7 @@ var fs = require('fs');
 var temp = require('temp');
 var semver = require('semver');
 var urljoin = require('url-join');
+var which = require('which');
 
 var logging = false;
 
@@ -147,6 +148,13 @@ var createTempDir = function() {
 var GitLocation = function(options) {
 
   logging = options.log === false ? false : true;
+
+  // ensure git is installed
+  try {
+    which.sync('git');
+  } catch(ex) {
+    throw 'Git not installed. Please make sure that it\'s installed on your system.';
+  }
 
   if (!semver.satisfies(options.apiVersion + '.0', '^1.0')) {
     throw 'Current jspm-git version isn\'t compatible to the jspm Endpoint API v' + options.apiVersion + '\n' +
