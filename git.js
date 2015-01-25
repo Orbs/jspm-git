@@ -52,18 +52,26 @@ var getGitVersion = function() {
   });
 };
 
-var cloneGitRepo = function(repoDir, branch, url, execOpt) {
+var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
   return getGitVersion().
   then(function(gitVersion) {
     return new Promise(function(resolve, reject) {
       var command;
+
+      command = ['git clone', '-b ' + branch];
+
+      if (shallowclone) {
+        command.push('--depth 1');
+      }
+
       // Parameter --single-branch is only supported from Git version 1.7.10 upwards
       if (semver.lt(gitVersion, '1.7.10')) {
-        command = 'git clone -b ' + branch + ' --depth 1 ' + url + ' ' + repoDir;
-      } else {
-        command = 'git clone -b ' + branch + ' --depth 1 --single-branch ' + url + ' ' + repoDir;
+        command.push('--single-branch');
       }
-      exec(command, execOpt, function(err, stdout, stderr) {
+
+      command = command.concat([url, repoDir]);
+
+      exec(command.join(' '), execOpt, function(err, stdout, stderr) {
         if (err) {
           logMsg('Error while cloning the git branch: ' + stderr);
           rimraf(repoDir, function() {
@@ -77,8 +85,8 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt) {
   });
 };
 
-var exportGitRepo = function(repoDir, branch, url, execOpt) {
-  return cloneGitRepo(repoDir, branch, url, execOpt).
+var exportGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
+  return cloneGitRepo(repoDir, branch, url, execOpt, shallowclone).
   then(function() {
     return new Promise(function(resolve, reject) {
       // Remove the .git folder
@@ -171,6 +179,10 @@ var GitLocation = function(options) {
     options.reposuffix = '.git';
   }
 
+  if (typeof options.shallowclone !== 'boolean') {
+    options.shallowclone = true;
+  }
+
   this.options = options;
 };
 
@@ -180,31 +192,46 @@ GitLocation.configure = function(config, ui) {
   return Promise.resolve(ui.input('Enter the base URL of your git server e.g. https://code.mycompany.com/git/', null))
   .then(function(baseurl) {
     if (!baseurl || baseurl === '') {
-      ui.log('warn', 'Invalid base URL was entered');
-      return Promise.reject();
+      return Promise.reject('Invalid base URL was entered');
     }
     config.baseurl = baseurl;
-  })
-  .then(function() {
-    return Promise.resolve(ui.confirm('Would you like to use the default git repository suffix (.git)?', true))
-    .then(function(usedefaultsuffix) {
-      if(usedefaultsuffix) {
-        // Leave the reposuffix config empty in order to use the default configuration of the endpoint
-        return;
-      }
-      return Promise.resolve(ui.confirm('Would you like to set an empty git repository suffix?', false))
-      .then(function(setemptysuffix) {
-        if (setemptysuffix) {
-          // Set an empty repository suffix
-          config.reposuffix = '';
-          return;
-        }
-        return Promise.resolve(ui.input('Enter the git repository suffix', '.git'))
-        .then(function(reposuffix) {
-          // Use the entered suffix for the endpoint
-          config.reposuffix = reposuffix;
+  }).then(function() {
+    return Promise.resolve(ui.confirm('Set advanced configurations?', false))
+    .then(function(advancedconfig) {
+      if (advancedconfig) {
+        return Promise.resolve(ui.confirm('Would you like to use the default git repository suffix (.git)?', true))
+        .then(function(usedefaultsuffix) {
+          if(usedefaultsuffix) {
+            // Leave the reposuffix config empty in order to use the default configuration of the endpoint
+            return;
+          }
+          return Promise.resolve(ui.confirm('Would you like to set an empty git repository suffix?', false))
+          .then(function(setemptysuffix) {
+            if (setemptysuffix) {
+              // Set an empty repository suffix
+              config.reposuffix = '';
+              return;
+            }
+            return Promise.resolve(ui.input('Enter the git repository suffix', '.git'))
+            .then(function(reposuffix) {
+              // Use the entered suffix for the endpoint
+              config.reposuffix = reposuffix;
+            });
+          });
+        }).then(function() {
+          return Promise.resolve(ui.confirm('Disable shallow git clones?', false))
+          .then(function(shallowclone) {
+            if (shallowclone) {
+              return Promise.resolve(ui.confirm('Disabling shallow git clones might have severe impact on the git clone performance and you might run into jspm install timeouts. Are you sure you want to disable it?', false))
+              .then(function(confirm) {
+                if (confirm) {
+                  config.shallowclone = !shallowclone;
+                }
+              });
+            }
+          });
         });
-      });
+      }
     });
   })
   .then(function() {
@@ -295,7 +322,7 @@ GitLocation.prototype = {
 
     return createTempDir().then(function(tempDir) {
       tempRepoDir = tempDir;
-      return exportGitRepo(tempRepoDir, version, url, self.execOpt);
+      return exportGitRepo(tempRepoDir, version, url, self.execOpt, self.options.shallowclone);
     }).then(function() {
       return readPackageJSON(tempRepoDir);
     }).then(function(data) {
