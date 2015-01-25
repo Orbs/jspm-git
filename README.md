@@ -21,12 +21,19 @@ npm install jspm-git --save-dev
 
 ```
 
-## Create a new or reconfigure an existing jspm-git endpoint:
+## Create a new jspm-git endpoint:
 
 ```bash
 jspm endpoint create mygit jspm-git
 ```
-Where `mygit` will be the name of your git endpoint.
+Where `mygit` will be the name of your new git endpoint.
+
+## Configure an existing endpoint:
+
+```bash
+jspm endpoint config mygit
+```
+Where `mygit` is the name of your existing endpoint which you want to configure.
 
 
 ## Usage
@@ -35,7 +42,6 @@ Exemplary usage of jspm-git to install a jspm package from a git server located 
 ```bash
 # Exemplary endpoint configuration of mygit
 # baseurl: ssh://username@code.mycompany.com/
-# reposuffix: .git (default)
 
 jspm install mygit:projname/reponame
 ```
@@ -50,8 +56,8 @@ Endpoint configurations for popular Git hosting services
 ### Bitbucket
 ```bash
 jspm endpoint create bitbucket jspm-git
-# baseurl = https://bitbucket.org/
-# use default git repository suffix (.git): true
+# baseurl: https://bitbucket.org/
+
 jspm install bitbucket:accountname/reponame
 ```
 
