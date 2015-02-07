@@ -4,7 +4,8 @@
   "description": "jspm endpoint for git repositories",
   "main": "git.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jshint git.js",
+    "jshint": "jshint git.js"
   },
   "repository": {
     "type": "git",
@@ -30,5 +31,7 @@
     "url-join": "0.0.1",
     "which": "^1.0.8"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "jshint": "^2.6.0"
+  }
 }

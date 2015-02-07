@@ -262,35 +262,38 @@ GitLocation.prototype = {
 
       exec('git ls-remote ' + url + ' refs/tags/* refs/heads/*', self.execOpt, function(err, stdout, stderr) {
         if (err) {
-          if ((err + '').indexOf('Repository not found') == -1)
+          if ((err + '').indexOf('Repository not found') === -1) {
             reject(stderr);
-          else
+          } else {
             resolve({ notfound: true });
+          }
         }
 
         versions = {};
         var refs = stdout.split('\n');
         for (var i = 0; i < refs.length; i++) {
-          if (!refs[i])
+          if (!refs[i]) {
             continue;
+          }
 
           var hash = refs[i].substr(0, refs[i].indexOf('\t'));
           var refName = refs[i].substr(hash.length + 1);
           var version;
           var versionObj = { hash: hash, meta: {} };
 
-          if (refName.substr(0, 11) == 'refs/heads/') {
+          if (refName.substr(0, 11) === 'refs/heads/') {
             version = refName.substr(11);
             versionObj.exactOnly = true;
           }
 
-          else if (refName.substr(0, 10) == 'refs/tags/') {
-            if (refName.substr(refName.length - 3, 3) == '^{}')
+          else if (refName.substr(0, 10) === 'refs/tags/') {
+            if (refName.substr(refName.length - 3, 3) === '^{}') {
               version = refName.substr(10, refName.length - 13);
-            else
+            } else {
               version = refName.substr(10);
+            }
 
-            if (version.substr(0, 1) == 'v' && semver.valid(version.substr(1))) {
+            if (version.substr(0, 1) === 'v' && semver.valid(version.substr(1))) {
               version = version.substr(1);
               // note when we remove a "v" which versions we need to add it back to
               // to work out the tag version again
@@ -312,8 +315,9 @@ GitLocation.prototype = {
 
     var url, tempRepoDir, packageJSONData, self = this;
 
-    if (meta.vPrefix)
+    if (meta.vPrefix) {
       version = 'v' + version;
+    }
 
     // Automatically track and cleanup files at exit
     temp.track();
