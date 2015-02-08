@@ -1,4 +1,4 @@
-jspm-git
+jspm-git [![Build Status][travis-image]][travis-url]
 ==========
 
 A generic jspm endpoint for Git Repositories.
@@ -66,3 +66,6 @@ If you want to avoid rate limits please use the base URL `ssh://git@bitbucket.or
 Please note that you've to upload your public key to your Bitbucket account or otherwise Bitbucket will refuse the `ssh`connection. For more details please see official Bitbucket manual [Set up SSH for Git](https://confluence.atlassian.com/display/BITBUCKET/Set+up+SSH+for+Git)
 ### Github
 Please use the official github endpoint that comes along with the jspm-cli
+
+[travis-url]: https://travis-ci.org/Orbs/jspm-git
+[travis-image]: https://travis-ci.org/Orbs/jspm-git.svg?branch=master
