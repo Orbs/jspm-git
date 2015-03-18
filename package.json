@@ -29,6 +29,7 @@
     "semver": "^4.2.0",
     "temp": "^0.8.1",
     "url-join": "0.0.1",
+    "valid-url": "^1.0.9",
     "which": "^1.0.8"
   },
   "devDependencies": {

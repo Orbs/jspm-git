@@ -20,6 +20,7 @@ var semver = require('semver');
 var urljoin = require('url-join');
 var which = require('which');
 var asp = require('rsvp').denodeify;
+var validUrl = require('valid-url');
 
 var logging = false;
 
@@ -30,7 +31,12 @@ var logMsg = function(msg) {
 };
 
 var createGitUrl = function(basepath, repo, reposuffix) {
-  return urljoin(basepath, repo + reposuffix);
+  if (validUrl.isUri(basepath)) {
+    return urljoin(basepath, repo + reposuffix);
+  } else {
+    // Assume that basepath is scp-like formated path i.e. [[user@]host]
+    return basepath + ':' + repo + reposuffix;
+  }
 };
 
 var getGitVersion = function() {
