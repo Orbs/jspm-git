@@ -19,6 +19,7 @@ var temp = require('temp');
 var semver = require('semver');
 var urljoin = require('url-join');
 var which = require('which');
+var asp = require('rsvp').denodeify;
 
 var logging = false;
 
@@ -107,7 +108,6 @@ var readPackageJSON = function(repoDir) {
   return new Promise(function(resolve, reject) {
     fs.readFile(path.join(repoDir, 'package.json'), 'utf8', function (err, data) {
       if (err) {
-        logMsg('Warn: No package.json found');
         resolve({});
       } else {
         try {
@@ -334,6 +334,66 @@ GitLocation.prototype = {
       return moveRepoToOutDir(tempRepoDir, outDir);
     }).then(function() {
       return packageJSONData;
+    });
+  },
+
+  // check if the main entry point exists. If not, try the bower.json main.
+  build: function(pjson, dir) {
+    var main = pjson.main || '';
+    var libDir = pjson.directories && (pjson.directories.dist || pjson.directories.lib) || '.';
+
+    // convert to windows-style paths if necessary
+    main = path.normalize(main);
+    libDir = path.normalize(libDir);
+
+    if (main.indexOf('!') !== -1) {
+      return;
+    }
+
+    function checkMain(main, libDir) {
+      if (!main) {
+        return Promise.resolve(false);
+      }
+
+      if (main.substr(main.length - 3, 3) === '.js') {
+        main = main.substr(0, main.length - 3);
+      }
+
+      return new Promise(function(resolve) {
+        fs.exists(path.resolve(dir, libDir || '.', main) + '.js', function(exists) {
+          resolve(exists);
+        });
+      });
+    }
+
+    return checkMain(main, libDir)
+    .then(function(hasMain) {
+      if (hasMain) {
+        return;
+      }
+
+      return asp(fs.readFile)(path.resolve(dir, 'bower.json'))
+      .then(function(bowerJson) {
+        try {
+          bowerJson = JSON.parse(bowerJson);
+        } catch(e) {
+          return;
+        }
+
+        main = bowerJson.main || '';
+        if (main instanceof Array) {
+          main = main[0];
+        }
+
+        return checkMain(main);
+      }, function() {})
+      .then(function(hasBowerMain) {
+        if (!hasBowerMain) {
+          return;
+        }
+
+        pjson.main = main;
+      });
     });
   },
 
