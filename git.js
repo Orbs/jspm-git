@@ -65,7 +65,7 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
       }
 
       // Parameter --single-branch is only supported from Git version 1.7.10 upwards
-      if (semver.lt(gitVersion, '1.7.10')) {
+      if (semver.gte(gitVersion, '1.7.10')) {
         command.push('--single-branch');
       }
 
