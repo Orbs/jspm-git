@@ -63,16 +63,20 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
   return getGitVersion().
   then(function(gitVersion) {
     return new Promise(function(resolve, reject) {
-      var command;
+      var command, gitLegacyMode;
 
-      command = ['git clone', '-b ' + branch];
+      // Detect if we need to run in git legacy mode
+      gitLegacyMode = semver.lt(gitVersion, '1.7.10');
+
+      command = ['git clone'];
 
       if (shallowclone) {
         command.push('--depth 1');
       }
 
-      // Parameter --single-branch is only supported from Git version 1.7.10 upwards
-      if (semver.gte(gitVersion, '1.7.10')) {
+      // Parameters --single-branch and -b are only supported from Git version 1.7.10 or greater
+      if (!gitLegacyMode) {
+        command.push('-b ' + branch);
         command.push('--single-branch');
       }
 
@@ -80,12 +84,25 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
 
       exec(command.join(' '), execOpt, function(err, stdout, stderr) {
         if (err) {
-          logMsg('Error while cloning the git branch: ' + stderr);
+          logMsg('Error while cloning the git repository: ' + stderr);
           rimraf(repoDir, function() {
             reject(stderr);
           });
         } else {
-          resolve();
+          if (gitLegacyMode) {
+            exec('git checkout ' + branch, {cwd: repoDir}, function(err, stdout, stderr) {
+              if (err) {
+                logMsg('Error while checking out the git branch: ' + stderr);
+                rimraf(repoDir, function() {
+                  reject(stderr);
+                });
+              } else {
+                resolve();
+              }
+            });
+          } else {
+            resolve();
+          }
         }
       });
     });
