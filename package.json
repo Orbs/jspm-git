@@ -4,7 +4,7 @@
   "description": "jspm endpoint for git repositories",
   "main": "git.js",
   "scripts": {
-    "test": "jshint git.js",
+    "test": "gulp test",
     "jshint": "jshint git.js"
   },
   "repository": {
@@ -33,6 +33,11 @@
     "which": "^1.0.8"
   },
   "devDependencies": {
-    "jshint": "^2.6.0"
+    "gulp": "~3.8.11",
+    "gulp-mocha": "~2.0.0",
+    "gulp-jshint": "~1.9.4",
+    "gulp-clean": "~0.3.1",
+    "gulp-istanbul": "~0.7.0",
+    "chai": "~2.2.0"
   }
 }
