@@ -23,7 +23,7 @@
   "license": "MIT",
   "homepage": "https://github.com/Orbs/jspm-git",
   "dependencies": {
-    "ncp": "^1.0.1",
+    "ncp": "^2.0",
     "rimraf": "^2.2.8",
     "rsvp": "^3.0.16",
     "semver": "^4.2.0",
