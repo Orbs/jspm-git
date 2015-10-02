@@ -30,14 +30,36 @@ var logMsg = function(msg) {
   }
 };
 
-var createGitUrl = function(basepath, repo, reposuffix) {
+var createGitUrl = function(basepath, repo, reposuffix, auth) {
   if (validUrl.isUri(basepath)) {
-    return urljoin(basepath, repo + reposuffix);
+    var baseWithAuth = basepath;
+    if (auth) {
+      var authStr = encodeURIComponent(auth.username) + ':' + encodeURIComponent(auth.password) + '@';
+      var parts = basepath.match(/^((http[s]?|ftp):\/*)(.*)/);
+
+      baseWithAuth = parts[1] + authStr + parts[3];
+    }
+
+    return urljoin(baseWithAuth, repo + reposuffix);
   } else {
     // Assume that basepath is scp-like formated path i.e. [[user@]host]
     return basepath + ':' + repo + reposuffix;
   }
 };
+
+function encodeCredentials(auth) {
+  // avoid storing passwords as plain text in config
+  return new Buffer(encodeURIComponent(auth.username) + ':' + encodeURIComponent(auth.password)).toString('base64');
+}
+
+function decodeCredentials(str) {
+  var auth = new Buffer(str, 'base64').toString('ascii').split(':');
+
+  return {
+    username: decodeURIComponent(auth[0]),
+    password: decodeURIComponent(auth[1])
+  };
+}
 
 var getGitVersion = function() {
   return new Promise(function(resolve, reject) {
@@ -207,6 +229,9 @@ var GitLocation = function(options) {
   }
 
   this.options = options;
+  if (options.auth) {
+    this.auth = decodeCredentials(options.auth);
+  }
 };
 
 // static configuration function
@@ -253,6 +278,33 @@ GitLocation.configure = function(config, ui) {
               });
             }
           });
+        }).then(function() {
+          return Promise.resolve()
+            .then(function() {
+              return ui.confirm('Enable authentication?', false);
+            })
+            .then(function(authentication) {
+              if (authentication) {
+                var auth = {};
+                return Promise.resolve()
+                  .then(function() {
+                    return ui.input('Username');
+                  })
+                  .then(function(username) {
+                    auth.username = username;
+                    return ui.input('Password');
+                  })
+                  .then(function(password) {
+                    auth.password = password;
+                    return encodeCredentials(auth);
+                  });
+              } else {
+                return null;
+              }
+            })
+            .then(function(auth) {
+              config.auth = auth;
+            });
         });
       }
     });
@@ -279,9 +331,9 @@ GitLocation.prototype = {
   lookup: function(repo) {
     var self = this;
     return new Promise(function(resolve, reject) {
+      var versions, url;
 
-      var versions,
-          url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix);
+      url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
 
       exec('git ls-remote ' + url + ' refs/tags/* refs/heads/*', self.execOpt, function(err, stdout, stderr) {
         if (err) {
@@ -345,7 +397,7 @@ GitLocation.prototype = {
     // Automatically track and cleanup files at exit
     temp.track();
 
-    url = createGitUrl(this.options.baseurl, repo, this.options.reposuffix);
+    url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
 
     return createTempDir().then(function(tempDir) {
       tempRepoDir = tempDir;
