@@ -9,7 +9,6 @@
 
 'use strict';
 
-var exec = require('child_process').exec;
 var path = require('path');
 var Promise = require('rsvp').Promise;
 var rimraf = require('rimraf');
@@ -21,6 +20,8 @@ var urljoin = require('url-join');
 var which = require('which');
 var asp = require('rsvp').denodeify;
 var validUrl = require('valid-url');
+
+var execGit = require('./exec-git');
 
 var logging = false;
 
@@ -39,7 +40,6 @@ var createGitUrl = function(basepath, repo, reposuffix, auth) {
 
       baseWithAuth = parts[1] + authStr + parts[3];
     }
-
     return urljoin(baseWithAuth, repo + reposuffix);
   } else {
     // Assume that basepath is scp-like formated path i.e. [[user@]host]
@@ -63,7 +63,7 @@ function decodeCredentials(str) {
 
 var getGitVersion = function() {
   return new Promise(function(resolve, reject) {
-    exec('git --version', null, function(err, stdout, stderr) {
+    execGit('--version', null, function(err, stdout, stderr) {
       var versionArr;
       if (err) {
         logMsg('Error while reading our the Git version: ' + stderr);
@@ -90,7 +90,7 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
       // Detect if we need to run in git legacy mode
       gitLegacyMode = semver.lt(gitVersion, '1.7.10');
 
-      command = ['git clone'];
+      command = ['clone'];
 
       if (shallowclone) {
         command.push('--depth 1');
@@ -104,15 +104,18 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
 
       command = command.concat([url, repoDir]);
 
-      exec(command.join(' '), execOpt, function(err, stdout, stderr) {
+      execGit(command.join(' '), execOpt, function(err, stdout, stderr) {
         if (err) {
-          logMsg('Error while cloning the git repository: ' + stderr);
+          var error = new Error(stderr.toString().replace(url, ''));
+          error.hideStack = true;
+          error.retriable = true;
+          logMsg('Error while cloning the git repository: ' + error);
           rimraf(repoDir, function() {
-            reject(stderr);
+            reject(error);
           });
         } else {
           if (gitLegacyMode) {
-            exec('git checkout ' + branch, {cwd: repoDir}, function(err, stdout, stderr) {
+            execGit('checkout ' + branch, {cwd: repoDir}, function(err, stdout, stderr) {
               if (err) {
                 logMsg('Error while checking out the git branch: ' + stderr);
                 rimraf(repoDir, function() {
@@ -214,10 +217,13 @@ var GitLocation = function(options) {
 	'Please update or install a compatible version of jspm-git.';
   }
 
+  this.maxRepoSize = (options.maxRepoSize || 0) * 1024 * 1024;
+
   this.execOpt = {
     cwd: options.tmpDir,
     timeout: options.timeout * 1000,
-    killSignal: 'SIGKILL'
+    killSignal: 'SIGKILL',
+    maxBuffer: this.maxRepoSize || 2 * 1024 * 1024
   };
 
   if (typeof options.reposuffix !== 'string') {
@@ -329,16 +335,18 @@ GitLocation.prototype = {
   // { versions: { versionhash } }
   // { notfound: true }
   lookup: function(repo) {
-    var self = this;
+    var execOpt = this.execOpt, versions, self = this;
+
     return new Promise(function(resolve, reject) {
-      var versions, url;
-
-      url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
-
-      exec('git ls-remote ' + url + ' refs/tags/* refs/heads/*', self.execOpt, function(err, stdout, stderr) {
+      var url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
+      execGit('ls-remote ' + url + ' refs/tags/* refs/heads/*', execOpt, function(err, stdout, stderr) {
         if (err) {
-          if ((err + '').indexOf('Repository not found') === -1) {
-            reject(stderr);
+          if (err.toString().indexOf('not found') === -1) {
+            // dont show plain text passwords in error
+            var error = new Error(stderr.toString().replace(url, ''));
+            error.hideStack = true;
+            error.retriable = true;
+            reject(error);
           } else {
             resolve({ notfound: true });
           }
@@ -358,16 +366,13 @@ GitLocation.prototype = {
 
           if (refName.substr(0, 11) === 'refs/heads/') {
             version = refName.substr(11);
-            versionObj.exactOnly = true;
-          }
-
-          else if (refName.substr(0, 10) === 'refs/tags/') {
+            versionObj.stable = false;
+          } else if (refName.substr(0, 10) === 'refs/tags/') {
             if (refName.substr(refName.length - 3, 3) === '^{}') {
               version = refName.substr(10, refName.length - 13);
             } else {
               version = refName.substr(10);
             }
-
             if (version.substr(0, 1) === 'v' && semver.valid(version.substr(1))) {
               version = version.substr(1);
               // note when we remove a "v" which versions we need to add it back to
