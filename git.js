@@ -231,7 +231,7 @@ var GitLocation = function(options) {
   }
 
   if (typeof options.shallowclone !== 'boolean') {
-    options.shallowclone = true;
+    options.shallowclone = options.shallowclone !== 'false';
   }
 
   this.options = options;
