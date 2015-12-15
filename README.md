@@ -52,6 +52,15 @@ jspm-git will then try to install the package located at
 ```
 ssh://username@code.mycompany.com/projname/reponame.git
 ```
+#### Troubleshooting
+These combinations of `jspm` and `jspm-git` are **valid**
+* global jspm + global jspm-git
+* local jspm + local jspm-git
+
+These combinations of `jspm` and `jspm-git` are **invalid**
+* global jspm + local jspm-git
+* local jspm + global jspm-git
+
 
 ## Registry Configurations
 Registry configurations for popular Git hosting services
@@ -68,6 +77,11 @@ If you want to avoid rate limits please use the base URL `ssh://git@bitbucket.or
 Please note that you've to upload your public key to your Bitbucket account or otherwise Bitbucket will refuse the `ssh`connection. For more details please see official Bitbucket manual [Set up SSH for Git](https://confluence.atlassian.com/display/BITBUCKET/Set+up+SSH+for+Git)
 ### Github
 Please use the official github registry that comes along with the jspm-cli
+
+#### Configuration File
+You can find your jspm-git registry configuration in the following locations
+* Linux Systems `~/.jspm/config file`
+* Windows `%LOCALAPPDATA%/.jspm/config`
 
 [travis-url]: https://travis-ci.org/Orbs/jspm-git
 [travis-image]: https://travis-ci.org/Orbs/jspm-git.svg?branch=master
