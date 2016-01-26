@@ -418,21 +418,21 @@ GitLocation.prototype = {
   },
 
   // check if the main entry point exists. If not, try the bower.json main.
-  build: function(pjson, dir) {
-    var main = pjson.main || '';
-    var libDir = pjson.directories && (pjson.directories.dist || pjson.directories.lib) || '.';
+  processPackage: function(packageConfig, packageName, packageDir) {
+    var main = packageConfig.main || '';
+    var libDir = packageConfig.directories && (packageConfig.directories.dist || packageConfig.directories.lib) || '.';
 
     // convert to windows-style paths if necessary
     main = path.normalize(main);
     libDir = path.normalize(libDir);
 
     if (main.indexOf('!') !== -1) {
-      return;
+      return Promise.resolve(packageConfig);
     }
 
     function checkMain(main, libDir) {
       if (!main) {
-        return Promise.resolve(false);
+        return Promise.resolve(packageConfig);
       }
 
       if (main.substr(main.length - 3, 3) === '.js') {
@@ -440,7 +440,7 @@ GitLocation.prototype = {
       }
 
       return new Promise(function(resolve) {
-        fs.exists(path.resolve(dir, libDir || '.', main) + '.js', function(exists) {
+        fs.exists(path.resolve(packageDir, libDir || '.', main) + '.js', function(exists) {
           resolve(exists);
         });
       });
@@ -449,15 +449,15 @@ GitLocation.prototype = {
     return checkMain(main, libDir)
     .then(function(hasMain) {
       if (hasMain) {
-        return;
+        return Promise.resolve(packageConfig);
       }
 
-      return asp(fs.readFile)(path.resolve(dir, 'bower.json'))
+      return asp(fs.readFile)(path.resolve(packageDir, 'bower.json'))
       .then(function(bowerJson) {
         try {
           bowerJson = JSON.parse(bowerJson);
         } catch(e) {
-          return;
+          return Promise.resolve(packageConfig);
         }
 
         main = bowerJson.main || '';
@@ -469,10 +469,11 @@ GitLocation.prototype = {
       }, function() {})
       .then(function(hasBowerMain) {
         if (!hasBowerMain) {
-          return;
+          return Promise.resolve(packageConfig);
         }
 
-        pjson.main = main;
+        packageConfig.main = main;
+        return Promise.resolve(packageConfig);
       });
     });
   },
