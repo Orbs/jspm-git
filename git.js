@@ -1,7 +1,7 @@
 
 /**
 * @license jspm-git
-* Copyright (c) 2014 Tauren Mills, contributors
+* Copyright (c) 2016 Tauren Mills, contributors
 * jspm endpoint for Git Repositories
 * (based on Guy Bedford's github endpoint for jspm https://github.com/jspm/github)
 * License: MIT
@@ -322,58 +322,49 @@ GitLocation.configure = function(config, ui) {
 
 GitLocation.prototype = {
 
-  parse: function(name) {
-    var parts = name.split('/');
-    var packageName = parts.splice(0, 2).join('/');
-    return {
-      package: packageName,
-      path: parts.join('/')
-    };
-  },
-
   // return values
   // { versions: { versionhash } }
   // { notfound: true }
   lookup: function(repo) {
-    var execOpt = this.execOpt, versions, self = this;
-
+    var execOpt = this.execOpt, self = this;
     return new Promise(function(resolve, reject) {
-      var url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
-      execGit('ls-remote ' + url + ' refs/tags/* refs/heads/*', execOpt, function(err, stdout, stderr) {
+      var remoteString = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
+      execGit('ls-remote ' + remoteString + ' refs/tags/* refs/heads/*', execOpt, function(err, stdout, stderr) {
         if (err) {
-          if (err.toString().indexOf('not found') === -1) {
+          if (err.toString().indexOf('not found') == -1) {
             // dont show plain text passwords in error
-            var error = new Error(stderr.toString().replace(url, ''));
+            var error = new Error(stderr.toString().replace(remoteString, ''));
             error.hideStack = true;
             error.retriable = true;
             reject(error);
-          } else {
-            resolve({ notfound: true });
           }
+          else
+            resolve({ notfound: true });
         }
 
-        versions = {};
+        var versions = {};
         var refs = stdout.split('\n');
         for (var i = 0; i < refs.length; i++) {
-          if (!refs[i]) {
+          if (!refs[i])
             continue;
-          }
 
           var hash = refs[i].substr(0, refs[i].indexOf('\t'));
           var refName = refs[i].substr(hash.length + 1);
           var version;
           var versionObj = { hash: hash, meta: {} };
 
-          if (refName.substr(0, 11) === 'refs/heads/') {
+          if (refName.substr(0, 11) == 'refs/heads/') {
             version = refName.substr(11);
             versionObj.stable = false;
-          } else if (refName.substr(0, 10) === 'refs/tags/') {
-            if (refName.substr(refName.length - 3, 3) === '^{}') {
+          }
+
+          else if (refName.substr(0, 10) == 'refs/tags/') {
+            if (refName.substr(refName.length - 3, 3) == '^{}')
               version = refName.substr(10, refName.length - 13);
-            } else {
+            else
               version = refName.substr(10);
-            }
-            if (version.substr(0, 1) === 'v' && semver.valid(version.substr(1))) {
+
+            if (version.substr(0, 1) == 'v' && semver.valid(version.substr(1))) {
               version = version.substr(1);
               // note when we remove a "v" which versions we need to add it back to
               // to work out the tag version again
@@ -387,6 +378,59 @@ GitLocation.prototype = {
         resolve({ versions: versions });
       });
     });
+  },
+
+  // Prefetching the package config is not possible with Git as
+  // we've always to checkout the whole repository
+  // getPackageConfig: function(repo, version, hash, meta) {
+  // },
+
+  processPackageConfig: function(packageConfig, packageName) {
+    if (!packageConfig.jspm || !packageConfig.jspm.files)
+      delete packageConfig.files;
+
+    if ((packageConfig.dependencies || packageConfig.peerDependencies) && !packageConfig.registry && (!packageConfig.jspm || !(packageConfig.jspm.dependencies || packageConfig.jspm.peerDependencies))) {
+      var hasDependencies = false;
+      for (var p in packageConfig.dependencies)
+        hasDependencies = true;
+      for (var q in packageConfig.peerDependencies)
+        hasDependencies = true;
+
+      if (packageName && hasDependencies) {
+        var looksLikeNpm = packageConfig.name && packageConfig.version && (packageConfig.description || packageConfig.repository || packageConfig.author || packageConfig.license || packageConfig.scripts);
+        var isSemver = semver.valid(packageName.split('@').pop());
+        var noDepsMsg;
+
+        // non-semver npm installs on GitHub can be permitted as npm branch-tracking installs
+        if (looksLikeNpm) {
+          if (!isSemver)
+            noDepsMsg = 'To install this package as it would work on npm, install with a registry override via %jspm install ' + packageName + ' -o "{registry:\'npm\'}"%.';
+          else
+            noDepsMsg = 'If the dependencies aren\'t needed ignore this message. Alternatively set a `registry` or `dependencies` override or use the npm registry version at %jspm install npm:' + packageConfig.name + '@^' + packageConfig.version + '% instead.';
+        }
+        else {
+          // TODO Figure out which registry to set...!
+          noDepsMsg = 'If this is your own package, add `"registry": "jspm"` to the package.json to ensure the dependencies are installed.';
+        }
+
+        if (noDepsMsg) {
+          delete packageConfig.dependencies;
+          delete packageConfig.peerDependencies;
+          this.ui.log('warn', '`' + packageName + '` dependency installs skipped as it\'s a package with no registry property set.\n' + noDepsMsg + '\n');
+        }
+      }
+      else {
+        delete packageConfig.dependencies;
+        delete packageConfig.peerDependencies;
+      }
+    }
+
+    if (packageConfig.directories && packageConfig.directories.lib && !packageConfig.directories.dist) {
+      packageConfig.directories.dist = packageConfig.directories.lib;
+      this.ui.log('warn', 'Package `' + packageName + '` has a %directories.lib% override configuration which will work, but is deprecated for %directories.dist% in future jspm versions.\n');
+    }
+
+    return packageConfig;
   },
 
   // always an exact version
@@ -418,29 +462,32 @@ GitLocation.prototype = {
   },
 
   // check if the main entry point exists. If not, try the bower.json main.
-  processPackage: function(packageConfig, packageName, packageDir) {
+  processPackage: function(packageConfig, packageName, dir) {
     var main = packageConfig.main || '';
     var libDir = packageConfig.directories && (packageConfig.directories.dist || packageConfig.directories.lib) || '.';
 
-    // convert to windows-style paths if necessary
-    main = path.normalize(main);
-    libDir = path.normalize(libDir);
+    if (main instanceof Array)
+      main = main[0];
 
-    if (main.indexOf('!') !== -1) {
-      return Promise.resolve(packageConfig);
-    }
+    if (typeof main != 'string')
+      return;
+
+    // convert to windows-style paths if necessary
+    main = main.replace(/\//g, path.sep);
+    libDir = libDir.replace(/\//g, path.sep);
+
+    if (main.indexOf('!') != -1)
+      return;
 
     function checkMain(main, libDir) {
-      if (!main) {
-        return Promise.resolve(packageConfig);
-      }
+      if (!main)
+        return Promise.resolve(false);
 
-      if (main.substr(main.length - 3, 3) === '.js') {
+      if (main.substr(main.length - 3, 3) == '.js')
         main = main.substr(0, main.length - 3);
-      }
 
-      return new Promise(function(resolve) {
-        fs.exists(path.resolve(packageDir, libDir || '.', main) + '.js', function(exists) {
+      return new Promise(function(resolve, reject) {
+        fs.exists(path.resolve(dir, libDir || '.', main) + '.js', function(exists) {
           resolve(exists);
         });
       });
@@ -448,42 +495,39 @@ GitLocation.prototype = {
 
     return checkMain(main, libDir)
     .then(function(hasMain) {
-      if (hasMain) {
-        return Promise.resolve(packageConfig);
-      }
+      if (hasMain)
+        return hasMain;
 
-      return asp(fs.readFile)(path.resolve(packageDir, 'bower.json'))
+      return asp(fs.readFile)(path.resolve(dir, 'bower.json'))
       .then(function(bowerJson) {
         try {
           bowerJson = JSON.parse(bowerJson);
-        } catch(e) {
-          return Promise.resolve(packageConfig);
+        }
+        catch(e) {
+          return;
         }
 
         main = bowerJson.main || '';
-        if (main instanceof Array) {
+        if (main instanceof Array)
           main = main[0];
-        }
 
         return checkMain(main);
       }, function() {})
       .then(function(hasBowerMain) {
-        if (!hasBowerMain) {
-          return Promise.resolve(packageConfig);
-        }
+        if (hasBowerMain)
+          return hasBowerMain;
 
-        packageConfig.main = main;
-        return Promise.resolve(packageConfig);
+        main = 'index';
+        return checkMain(main, libDir);
       });
+    })
+    .then(function(hasMain) {
+      if (hasMain)
+        packageConfig.main = main.replace(/\\/g, '/');
+      return packageConfig;
     });
-  },
-
-  // sync function to clean up any tmp files / store save caches etc
-  dispose: function() {
-
-    // temp folder that has been created during download will be automaically
-    // removed at exit due the call of temp.track();
   }
+
 };
 
 module.exports = GitLocation;
