@@ -3,7 +3,7 @@ jspm-git
 
 [![NPM version][npm-image]][npm-url] [![Downloads][downloads-image]][npm-url] [![Build Status][travis-image]][travis-url]
 
-A generic jspm registry for Git Repositories.
+A generic jspm registry for Git repositories.
 
 jspm-git is based on Guy Bedford's [github registry for jspm](https://github.com/jspm/github/).
 
