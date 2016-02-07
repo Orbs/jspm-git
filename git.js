@@ -102,7 +102,7 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
         command.push('--single-branch');
       }
 
-      command = command.concat([url, repoDir]);
+      command = command.concat(['"' + url + '"', repoDir]);
 
       execGit(command.join(' '), execOpt, function(err, stdout, stderr) {
         if (err) {
@@ -339,7 +339,7 @@ GitLocation.prototype = {
 
     return new Promise(function(resolve, reject) {
       var url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
-      execGit('ls-remote ' + url + ' refs/tags/* refs/heads/*', execOpt, function(err, stdout, stderr) {
+      execGit('ls-remote "' + url + '" refs/tags/* refs/heads/*', execOpt, function(err, stdout, stderr) {
         if (err) {
           if (err.toString().indexOf('not found') === -1) {
             // dont show plain text passwords in error
