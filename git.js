@@ -36,7 +36,7 @@ var createGitUrl = function(basepath, repo, reposuffix, auth) {
     var baseWithAuth = basepath;
     if (auth) {
       var authStr = encodeURIComponent(auth.username) + ':' + encodeURIComponent(auth.password) + '@';
-      var parts = basepath.match(/^((http[s]?|ftp):\/*)(.*)/);
+      var parts = basepath.match(/^((http[s]?|ftp|ssh):\/*)(.*)/);
 
       baseWithAuth = parts[1] + authStr + parts[3];
     }
