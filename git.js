@@ -212,7 +212,7 @@ var GitLocation = function(options) {
     throw 'Git not installed. Please make sure that it\'s installed on your system.';
   }
 
-  if (!semver.satisfies(options.apiVersion + '.0', '^1.0')) {
+  if (!semver.satisfies(options.apiVersion + '.0', '^2.0')) {
     throw 'Current jspm-git version isn\'t compatible to the jspm Endpoint API v' + options.apiVersion + '\n' +
 	'Please update or install a compatible version of jspm-git.';
   }
