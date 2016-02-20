@@ -1,7 +1,7 @@
 jspm-git
 ==========
 
-[![NPM version][npm-image]][npm-url] [![Downloads][downloads-image]][npm-url] [![Build Status][travis-image]][travis-url]
+[![NPM version][npm-image]][npm-url] [![Downloads][downloads-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][david-dm-image]][david-dm-url]
 
 A generic jspm registry for Git repositories.
 
@@ -91,7 +91,8 @@ You can find your jspm-git registry configuration in the following locations
 
 [travis-url]: https://travis-ci.org/Orbs/jspm-git
 [travis-image]: https://travis-ci.org/Orbs/jspm-git.svg?branch=master
-
 [downloads-image]: http://img.shields.io/npm/dm/jspm-git.svg
 [npm-url]: https://npmjs.org/package/jspm-git
 [npm-image]: http://img.shields.io/npm/v/jspm-git.svg
+[david-dm-image]: https://david-dm.org/Orbs/jspm-git.svg
+[david-dm-url]: https://david-dm.org/Orbs/jspm-git

@@ -1,7 +1,7 @@
 'use strict';
 
 var gulp = require('gulp');
-var clean = require('gulp-clean');
+var rimraf  = require('gulp-rimraf');
 var jshint = require('gulp-jshint');
 var mocha = require('gulp-mocha');
 var istanbul = require('gulp-istanbul');
@@ -15,7 +15,7 @@ var sources = {
 gulp.task('default', ['clean', 'lint', 'mocha']);
 
 gulp.task('clean', function() {
-  return gulp.src(sources.temp, {read: false}).pipe(clean());
+  return gulp.src(sources.temp, {read: false}).pipe(rimraf());
 });
 
 gulp.task('lint', function() {

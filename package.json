@@ -24,20 +24,21 @@
   "homepage": "https://github.com/Orbs/jspm-git",
   "dependencies": {
     "ncp": "^2.0",
-    "rimraf": "^2.2.8",
-    "rsvp": "^3.0.16",
-    "semver": "^4.2.0",
-    "temp": "^0.8.1",
-    "url-join": "0.0.1",
+    "rimraf": "^2.5.2",
+    "rsvp": "^3.2.1",
+    "semver": "^5.1.0",
+    "temp": "^0.8.3",
+    "url-join": "^0.0.1",
     "valid-url": "^1.0.9",
-    "which": "^1.0.8"
+    "which": "^1.2.4"
   },
   "devDependencies": {
-    "gulp": "~3.8.11",
-    "gulp-mocha": "~2.0.0",
-    "gulp-jshint": "~1.9.4",
-    "gulp-clean": "~0.3.1",
-    "gulp-istanbul": "~0.7.0",
-    "chai": "~2.2.0"
+    "chai": "^3.5.0",
+    "gulp": "^3.9.1",
+    "gulp-istanbul": "^0.10.3",
+    "gulp-jshint": "^2.0.0",
+    "gulp-mocha": "^2.2.0",
+    "gulp-rimraf": "^0.2.0",
+    "jshint": "^2.9.1"
   }
 }
