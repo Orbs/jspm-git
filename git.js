@@ -1,7 +1,7 @@
 
 /**
 * @license jspm-git
-* Copyright (c) 2014 Tauren Mills, contributors
+* Copyright (c) 2014-2016 Tauren Mills, contributors
 * jspm endpoint for Git Repositories
 * (based on Guy Bedford's github endpoint for jspm https://github.com/jspm/github)
 * License: MIT
@@ -20,10 +20,10 @@ var urljoin = require('url-join');
 var which = require('which');
 var asp = require('rsvp').denodeify;
 var validUrl = require('valid-url');
-
 var execGit = require('./exec-git');
 
 var logging = false;
+
 
 var logMsg = function(msg) {
   if (logging) {
@@ -31,34 +31,49 @@ var logMsg = function(msg) {
   }
 };
 
-var createGitUrl = function(basepath, repo, reposuffix, auth) {
-  if (validUrl.isUri(basepath)) {
-    var baseWithAuth = basepath;
+var createBaseUrl = function(baseurl, auth) {
+  if (validUrl.isUri(baseurl)) {
+    var baseWithAuth = baseurl;
     if (auth) {
       var authStr = encodeURIComponent(auth.username) + ':' + encodeURIComponent(auth.password) + '@';
-      var parts = basepath.match(/^((http[s]?|ftp|ssh):\/*)(.*)/);
-
+      var parts = baseurl.match(/^((http[s]?|ftp|ssh):\/*)(.*)/);
       baseWithAuth = parts[1] + authStr + parts[3];
     }
+    return baseWithAuth;
+  } else {
+    return null;
+  }
+};
+
+var createGitUrl = function(baseurl, repo, reposuffix, auth) {
+  if (validUrl.isUri(baseurl)) {
+    var baseWithAuth = createBaseUrl(baseurl, auth);
     return urljoin(baseWithAuth, repo + reposuffix);
   } else {
-    // Assume that basepath is scp-like formated path i.e. [[user@]host]
-    return basepath + ':' + repo + reposuffix;
+    // Assume that baseurl is scp-like formated path i.e. [[user@]host]
+    return baseurl + ':' + repo + reposuffix;
   }
 };
 
 function encodeCredentials(auth) {
-  // avoid storing passwords as plain text in config
-  return new Buffer(encodeURIComponent(auth.username) + ':' + encodeURIComponent(auth.password)).toString('base64');
+  if (auth) {
+    // avoid storing passwords as plain text in config
+    return new Buffer(encodeURIComponent(auth.username || '') + ':' + encodeURIComponent(auth.password || '')).toString('base64');
+  } else {
+    return null;
+  }
 }
 
 function decodeCredentials(str) {
-  var auth = new Buffer(str, 'base64').toString('ascii').split(':');
-
-  return {
-    username: decodeURIComponent(auth[0]),
-    password: decodeURIComponent(auth[1])
-  };
+  if (typeof str === 'string' && str !== '') {
+    var auth = new Buffer(str, 'base64').toString('ascii').split(':');
+    return {
+      username: decodeURIComponent(auth[0]),
+      password: decodeURIComponent(auth[1])
+    };
+  } else {
+    return null;
+  }
 }
 
 var getGitVersion = function() {
@@ -226,6 +241,10 @@ var GitLocation = function(options) {
     maxBuffer: this.maxRepoSize || 2 * 1024 * 1024
   };
 
+  if (typeof options.version !== 'string') {
+    options.version = '1.0';
+  }
+
   if (typeof options.reposuffix !== 'string') {
     options.reposuffix = '.git';
   }
@@ -243,9 +262,11 @@ var GitLocation = function(options) {
 // static configuration function
 GitLocation.configure = function(config, ui) {
 
-  return Promise.resolve(ui.input('Enter the base URL of your git server e.g. https://code.mycompany.com/git/', null))
+  config.version = '1.0';
+
+  return Promise.resolve(ui.input('Enter the base URL of your git server', config.baseurl))
   .then(function(baseurl) {
-    if (!baseurl || baseurl === '') {
+    if (!baseurl || baseurl === '' || !validUrl.isUri(baseurl)) {
       return Promise.reject('Invalid base URL was entered');
     }
     config.baseurl = baseurl;
@@ -253,10 +274,67 @@ GitLocation.configure = function(config, ui) {
     return Promise.resolve(ui.confirm('Set advanced configurations?', false))
     .then(function(advancedconfig) {
       if (advancedconfig) {
-        return Promise.resolve(ui.confirm('Would you like to use the default git repository suffix (.git)?', true))
+        return Promise.resolve()
+        .then(function() {
+          return Promise.resolve()
+          .then(function() {
+            var authEnabled = config.auth !== null && config.auth !== undefined;
+            if (!authEnabled) {
+              return ui.confirm('Enable authentication?', authEnabled);
+            } else {
+              return ui.confirm('Disable authentication?', false)
+              .then(function(disable) {
+                if (disable) {
+                  return false;
+                } else {
+                  return ui.confirm('Update authentication?', false)
+                  .then(function(update) {
+                    return update || null;
+                  });
+                }
+              });
+            }
+          })
+          .then(function(authentication) {
+            if (authentication) {
+              // TRUE - Set or update authentication
+              var auth = decodeCredentials(config.auth) || {};
+              return Promise.resolve()
+              .then(function() {
+                return ui.input('Username', auth.username);
+              })
+              .then(function(username) {
+                auth.username = username;
+                return ui.input('Password', null, true);
+              })
+              .then(function(password) {
+                auth.password = password;
+                return encodeCredentials(auth);
+              });
+            } else if (authentication !== null){
+              // FALSE - Delete authentication
+              return null;
+            } else {
+              // NULL - Keep current authentication
+              return config.auth;
+            }
+          })
+          .then(function(auth) {
+            if (auth) {
+              config.auth = auth;
+            } else {
+              delete config.auth;
+            }
+          });
+        })
+        .then(function() {
+          var isRepoSuffixUnset = config.reposuffix === undefined || config.reposuffix === null;
+          return Promise.resolve(ui.confirm('Would you like to use the default git repository suffix (.git)?', isRepoSuffixUnset));
+        })
         .then(function(usedefaultsuffix) {
           if(usedefaultsuffix) {
             // Leave the reposuffix config empty in order to use the default configuration of the endpoint
+            delete config.reposuffix;
             return;
           }
           return Promise.resolve(ui.confirm('Would you like to set an empty git repository suffix?', false))
@@ -266,13 +344,13 @@ GitLocation.configure = function(config, ui) {
               config.reposuffix = '';
               return;
             }
-            return Promise.resolve(ui.input('Enter the git repository suffix', '.git'))
+            return Promise.resolve(ui.input('Enter the git repository suffix', config.reposuffix || '.git'))
             .then(function(reposuffix) {
-              // Use the entered suffix for the endpoint
               config.reposuffix = reposuffix;
             });
           });
-        }).then(function() {
+        })
+        .then(function() {
           return Promise.resolve(ui.confirm('Disable shallow git clones?', false))
           .then(function(shallowclone) {
             if (shallowclone) {
@@ -284,33 +362,6 @@ GitLocation.configure = function(config, ui) {
               });
             }
           });
-        }).then(function() {
-          return Promise.resolve()
-            .then(function() {
-              return ui.confirm('Enable authentication?', false);
-            })
-            .then(function(authentication) {
-              if (authentication) {
-                var auth = {};
-                return Promise.resolve()
-                  .then(function() {
-                    return ui.input('Username');
-                  })
-                  .then(function(username) {
-                    auth.username = username;
-                    return ui.input('Password');
-                  })
-                  .then(function(password) {
-                    auth.password = password;
-                    return encodeCredentials(auth);
-                  });
-              } else {
-                return null;
-              }
-            })
-            .then(function(auth) {
-              config.auth = auth;
-            });
         });
       }
     });
