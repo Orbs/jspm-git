@@ -1,6 +1,6 @@
 {
   "name": "jspm-git",
-  "version": "0.5.0-beta.2",
+  "version": "0.5.0-beta.3",
   "description": "Generic jspm registry for Git repositories",
   "main": "git.js",
   "scripts": {
