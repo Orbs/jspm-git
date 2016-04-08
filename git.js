@@ -48,7 +48,14 @@ var createBaseUrl = function(baseurl, auth) {
 var createGitUrl = function(baseurl, repo, reposuffix, auth) {
   if (validUrl.isUri(baseurl)) {
     var baseWithAuth = createBaseUrl(baseurl, auth);
-    return urljoin(baseWithAuth, repo + reposuffix);
+    if (baseurl.indexOf('$$projName$$') > 0 && baseurl.indexOf('$$repoName$$' > 0)) {
+      var parts = repo.split('/');
+      return baseWithAuth
+        .replace('$$projName$$', parts[0])
+        .replace('$$repoName$$', parts[1]);
+    } else {
+      return urljoin(baseWithAuth, repo + reposuffix);
+    }
   } else {
     // Assume that baseurl is scp-like formated path i.e. [[user@]host]
     return baseurl + ':' + repo + reposuffix;
