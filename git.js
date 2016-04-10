@@ -10,7 +10,8 @@
 'use strict';
 
 var path = require('path');
-var Promise = require('rsvp').Promise;
+var Promise = require('bluebird');
+var asp = require('bluebird').Promise.promisify;
 var rimraf = require('rimraf');
 var ncp = require('ncp').ncp;
 var fs = require('fs');
@@ -18,12 +19,24 @@ var temp = require('temp');
 var semver = require('semver');
 var urljoin = require('url-join');
 var which = require('which');
-var asp = require('rsvp').denodeify;
 var validUrl = require('valid-url');
+
+try {
+  var netrc = require('netrc')();
+}
+catch(e) {}
+
 var execGit = require('./exec-git');
 
 var logging = false;
 
+function extend(dest, src) {
+  for (var key in src) {
+    dest[key] = src[key];
+  }
+
+  return dest;
+}
 
 var logMsg = function(msg) {
   if (logging) {
@@ -55,24 +68,39 @@ var createGitUrl = function(baseurl, repo, reposuffix, auth) {
   }
 };
 
+// avoid storing passwords as plain text in config
 function encodeCredentials(auth) {
-  if (auth) {
-    // avoid storing passwords as plain text in config
-    return new Buffer(encodeURIComponent(auth.username || '') + ':' + encodeURIComponent(auth.password || '')).toString('base64');
-  } else {
-    return null;
-  }
+  return new Buffer(auth.username + ':' + auth.password).toString('base64');
 }
 
 function decodeCredentials(str) {
-  if (typeof str === 'string' && str !== '') {
-    var auth = new Buffer(str, 'base64').toString('ascii').split(':');
+  var auth = new Buffer(str, 'base64').toString('utf8').split(':');
+
+  var username, password;
+
+  try {
+    username = decodeURIComponent(auth[0]);
+    password = decodeURIComponent(auth[1]);
+  }
+  catch(e) {
+    username = auth[0];
+    password = auth[1];
+  }
+
+  return {
+    username: username,
+    password: password
+  };
+}
+
+function readNetrc(hostname) {
+  var creds = netrc[hostname];
+
+  if (creds) {
     return {
-      username: decodeURIComponent(auth[0]),
-      password: decodeURIComponent(auth[1])
+      username: creds.login,
+      password: creds.password
     };
-  } else {
-    return null;
   }
 }
 
@@ -216,7 +244,7 @@ var createTempDir = function() {
   });
 };
 
-var GitLocation = function(options) {
+var GitLocation = function(options, ui) {
 
   logging = options.log === false ? false : true;
 
@@ -238,7 +266,8 @@ var GitLocation = function(options) {
     cwd: options.tmpDir,
     timeout: options.timeout * 1000,
     killSignal: 'SIGKILL',
-    maxBuffer: this.maxRepoSize || 2 * 1024 * 1024
+    maxBuffer: this.maxRepoSize || 2 * 1024 * 1024,
+    env: extend({}, process.env)
   };
 
   if (typeof options.version !== 'string') {
@@ -254,9 +283,13 @@ var GitLocation = function(options) {
   }
 
   this.options = options;
-  if (options.auth) {
+  if (typeof options.auth == 'string') {
     this.auth = decodeCredentials(options.auth);
+  } else {
+    this.auth = readNetrc(options.hostname);
   }
+
+  this.ui = ui;
 };
 
 // static configuration function
@@ -440,11 +473,17 @@ GitLocation.prototype = {
     if (!packageConfig.jspm || !packageConfig.jspm.files)
       delete packageConfig.files;
 
-    if ((packageConfig.dependencies || packageConfig.peerDependencies) && !packageConfig.registry && (!packageConfig.jspm || !(packageConfig.jspm.dependencies || packageConfig.jspm.peerDependencies))) {
+    var self = this;
+
+    if ((packageConfig.dependencies || packageConfig.peerDependencies || packageConfig.optionalDependencies) &&
+        !packageConfig.registry && (!packageConfig.jspm || !(packageConfig.jspm.dependencies || packageConfig.jspm.peerDependencies || packageConfig.jspm.optionalDependencies))) {
       var hasDependencies = false;
-      for (var p in packageConfig.dependencies)
+      var p;
+      for (p in packageConfig.dependencies)
         hasDependencies = true;
-      for (var q in packageConfig.peerDependencies)
+      for (p in packageConfig.peerDependencies)
+        hasDependencies = true;
+      for (p in packageConfig.optionalDependencies)
         hasDependencies = true;
 
       if (packageName && hasDependencies) {
@@ -467,18 +506,15 @@ GitLocation.prototype = {
         if (noDepsMsg) {
           delete packageConfig.dependencies;
           delete packageConfig.peerDependencies;
+          delete packageConfig.optionalDependencies;
           this.ui.log('warn', '`' + packageName + '` dependency installs skipped as it\'s a package with no registry property set.\n' + noDepsMsg + '\n');
         }
       }
       else {
         delete packageConfig.dependencies;
         delete packageConfig.peerDependencies;
+        delete packageConfig.optionalDependencies;
       }
-    }
-
-    if (packageConfig.directories && packageConfig.directories.lib && !packageConfig.directories.dist) {
-      packageConfig.directories.dist = packageConfig.directories.lib;
-      this.ui.log('warn', 'Package `' + packageName + '` has a %directories.lib% override configuration which will work, but is deprecated for %directories.dist% in future jspm versions.\n');
     }
 
     return packageConfig;
@@ -514,7 +550,7 @@ GitLocation.prototype = {
 
   // check if the main entry point exists. If not, try the bower.json main.
   processPackage: function(packageConfig, packageName, dir) {
-    var main = packageConfig.main || '';
+    var main = packageConfig.main || dir.split('/').pop().split('@').slice(0, -1).join('@') + (dir.substr(dir.length - 3, 3) != '.js' ? '.js' : '');
     var libDir = packageConfig.directories && (packageConfig.directories.dist || packageConfig.directories.lib) || '.';
 
     if (main instanceof Array)
