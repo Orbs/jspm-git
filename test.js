@@ -4,7 +4,10 @@ git = new Git({
   log: true,
   tmpDir: 'tmpDir',
   timeout: 5,
+  formatter: 'none',
   baseurl: 'https://github.com/'
+  // formatter: 'sprintf',
+  // baseurl: 'https://github.com/%s/%s.git'
 });
 
 git.getVersions('angular/bower-angular', function(versions) {

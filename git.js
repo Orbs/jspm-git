@@ -20,6 +20,7 @@ var urljoin = require('url-join');
 var which = require('which');
 var asp = require('rsvp').denodeify;
 var validUrl = require('valid-url');
+var sprintf = require('sprintf');
 var execGit = require('./exec-git');
 
 var logging = false;
@@ -31,8 +32,12 @@ var logMsg = function(msg) {
   }
 };
 
+var isValidBaseUrl = function(baseurl) {
+  return validUrl.isUri(sprintf(baseurl, 'a', 'b'));
+};
+
 var createBaseUrl = function(baseurl, auth) {
-  if (validUrl.isUri(baseurl)) {
+  if (isValidBaseUrl(baseurl)) {
     var baseWithAuth = baseurl;
     if (auth) {
       var authStr = encodeURIComponent(auth.username) + ':' + encodeURIComponent(auth.password) + '@';
@@ -45,14 +50,12 @@ var createBaseUrl = function(baseurl, auth) {
   }
 };
 
-var createGitUrl = function(baseurl, repo, reposuffix, auth) {
-  if (validUrl.isUri(baseurl)) {
+var createGitUrl = function(baseurl, repo, reposuffix, auth, formatter) {
+  if (isValidBaseUrl(baseurl)) {
     var baseWithAuth = createBaseUrl(baseurl, auth);
-    if (baseurl.indexOf('$$projName$$') > 0 && baseurl.indexOf('$$repoName$$' > 0)) {
+    if (formatter === 'sprintf') {
       var parts = repo.split('/');
-      return baseWithAuth
-        .replace('$$projName$$', parts[0])
-        .replace('$$repoName$$', parts[1]);
+      return sprintf(baseurl, parts[0], parts[1]);
     } else {
       return urljoin(baseWithAuth, repo + reposuffix);
     }
@@ -259,6 +262,10 @@ var GitLocation = function(options) {
   if (typeof options.shallowclone !== 'boolean') {
     options.shallowclone = options.shallowclone !== 'false';
   }
+  
+  if (typeof options.formatter !== 'string') {
+    options.formatter = 'none';
+  }
 
   this.options = options;
   if (options.auth) {
@@ -273,7 +280,7 @@ GitLocation.configure = function(config, ui) {
 
   return Promise.resolve(ui.input('Enter the base URL of your git server', config.baseurl))
   .then(function(baseurl) {
-    if (!baseurl || baseurl === '' || !validUrl.isUri(baseurl)) {
+    if (!baseurl || baseurl === '' || !isValidBaseUrl(baseurl)) {
       return Promise.reject('Invalid base URL was entered');
     }
     config.baseurl = baseurl;
@@ -369,6 +376,12 @@ GitLocation.configure = function(config, ui) {
               });
             }
           });
+        })
+        .then(function () {
+          return Promise.resolve(ui.input('Use formatter against base URL (none/sprintf)?', config.formatter || 'none'))
+          .then(function(formatter) {
+            config.formatter = formatter;
+          });
         });
       }
     });
@@ -396,7 +409,7 @@ GitLocation.prototype = {
     var execOpt = this.execOpt, versions, self = this;
 
     return new Promise(function(resolve, reject) {
-      var url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
+      var url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth, self.options.formatter);
       execGit('ls-remote "' + url + '" refs/tags/* refs/heads/*', execOpt, function(err, stdout, stderr) {
         if (err) {
           if (err.toString().indexOf('not found') === -1) {
@@ -460,7 +473,7 @@ GitLocation.prototype = {
     // Automatically track and cleanup files at exit
     temp.track();
 
-    url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
+    url = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth, self.options.formatter);
 
     return createTempDir().then(function(tempDir) {
       tempRepoDir = tempDir;
