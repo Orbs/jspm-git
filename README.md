@@ -29,20 +29,23 @@ npm install jspm-git --save-dev
 
 ```
 
-## Create a new jspm-git registry:
+## Create a new jspm-git registry
 
 ```bash
 jspm registry create mygit jspm-git
 ```
 Where `mygit` will be the name of your new git registry.
 
-## Configure an existing registry:
+## Configure an existing registry
 
 ```bash
 jspm registry config mygit
 ```
 Where `mygit` is the name of your existing registry which you want to configure.
 
+## Export & Import registry configurations
+
+Please have a look on the [Auto-configuring Registries](https://github.com/jspm/jspm-cli/blob/master/docs/registries.md#auto-configuring-registries) documentation of jspm.
 
 ## Usage
 Exemplary usage of jspm-git to install a jspm package from a git server located at `ssh://username@code.mycompany.com/`
