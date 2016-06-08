@@ -13,6 +13,7 @@ var path = require('path');
 var Promise = require('rsvp').Promise;
 var rimraf = require('rimraf');
 var ncp = require('ncp').ncp;
+var mkdirp = require('mkdirp');
 var fs = require('fs');
 var temp = require('temp');
 var semver = require('semver');
@@ -187,18 +188,22 @@ var readPackageJSON = function(repoDir) {
 var moveRepoToOutDir = function(repoDir, outDir) {
 
   return new Promise(function(resolve, reject) {
-    ncp(repoDir, outDir, {'stopOnErr': true}, function(err) {
-      if (err) {
-        logMsg('Error while moving repo to outDir: ' + err);
-        // Make sure the the outDir gets removed
-        rimraf(outDir, function() {
-          reject(err);
-        });
-      } else {
-        rimraf(repoDir, function() {
-          resolve();
-        });
-      }
+	  mkdirp(outDir, function(err) {
+      if (err)
+       return reject(err);
+      ncp(repoDir, outDir, {'stopOnErr': true}, function(err) {
+        if (err) {
+          logMsg('Error while moving repo to outDir: ' + err);
+          // Make sure the the outDir gets removed
+          rimraf(outDir, function() {
+            reject(err);
+          });
+        } else {
+          rimraf(repoDir, function() {
+            resolve();
+         });
+        }
+      });
     });
   });
 };
