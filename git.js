@@ -289,6 +289,13 @@ var GitLocation = function(options, ui) {
     this.auth = readNetrc(options.hostname);
   }
 
+  if (typeof options.packageNameFormats !== 'string'
+      || (typeof options.packageNameFormats === 'string' && options.packageNameFormats.replace(/ /g,'') === '')) {
+    options.packageNameFormats = '*/*'
+  }
+  // Expose package formats to jspm
+  GitLocation.packageNameFormats = options.packageNameFormats.replace(/ /g,'').split(',');
+
   this.ui = ui;
 };
 
@@ -362,7 +369,7 @@ GitLocation.configure = function(config, ui) {
         })
         .then(function() {
           var isRepoSuffixUnset = config.reposuffix === undefined || config.reposuffix === null;
-          return Promise.resolve(ui.confirm('Would you like to use the default git repository suffix (.git)?', isRepoSuffixUnset));
+          return Promise.resolve(ui.confirm('Use the default git repository suffix (.git)?', isRepoSuffixUnset));
         })
         .then(function(usedefaultsuffix) {
           if(usedefaultsuffix) {
@@ -370,7 +377,7 @@ GitLocation.configure = function(config, ui) {
             delete config.reposuffix;
             return;
           }
-          return Promise.resolve(ui.confirm('Would you like to set an empty git repository suffix?', false))
+          return Promise.resolve(ui.confirm('Set an empty git repository suffix?', false))
           .then(function(setemptysuffix) {
             if (setemptysuffix) {
               // Set an empty repository suffix
@@ -392,6 +399,17 @@ GitLocation.configure = function(config, ui) {
                 if (confirm) {
                   config.shallowclone = !shallowclone;
                 }
+              });
+            }
+          });
+        })
+        .then(function() {
+          return Promise.resolve(ui.confirm('Set or update custom package name formats?', false))
+          .then(function(setFormats) {
+            if (setFormats) {
+              return Promise.resolve(ui.input('Enter the a comma seperated list of package name formats', config.packageNameFormats || '*/*'))
+              .then(function(packageNameFormats) {
+                config.packageNameFormats = packageNameFormats;
               });
             }
           });
