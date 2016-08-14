@@ -21,10 +21,10 @@ var urljoin = require('url-join');
 var which = require('which');
 var validUrl = require('valid-url');
 
-try {
-  var netrc = require('netrc')();
-}
-catch(e) {}
+// try {
+//   var netrc = require('netrc')();
+// }
+// catch(e) {}
 
 var execGit = require('./exec-git');
 
@@ -93,16 +93,16 @@ function decodeCredentials(str) {
   };
 }
 
-function readNetrc(hostname) {
-  var creds = netrc[hostname];
-
-  if (creds) {
-    return {
-      username: creds.login,
-      password: creds.password
-    };
-  }
-}
+// function readNetrc(hostname) {
+//   var creds = netrc[hostname];
+//
+//   if (creds) {
+//     return {
+//       username: creds.login,
+//       password: creds.password
+//     };
+//   }
+// }
 
 var getGitVersion = function() {
   return new Promise(function(resolve, reject) {
@@ -285,9 +285,10 @@ var GitLocation = function(options, ui) {
   this.options = options;
   if (typeof options.auth == 'string') {
     this.auth = decodeCredentials(options.auth);
-  } else {
-    this.auth = readNetrc(options.hostname);
   }
+  // } else {
+  //   this.auth = readNetrc(options.hostname);
+  // }
 
   if (typeof options.packageNameFormats !== 'string'
       || (typeof options.packageNameFormats === 'string' && options.packageNameFormats.replace(/ /g,'') === '')) {
