@@ -85,7 +85,7 @@ var getGitVersion = function() {
         logMsg('Error while reading our the Git version: ' + stderr);
         reject(stderr);
       } else {
-        versionArr = stdout.match(/\d.\d.\d/);
+        versionArr = stdout.match(/\d+.\d+.\d+/);
         if (versionArr.length === 1) {
           resolve(versionArr[0]);
         } else {
