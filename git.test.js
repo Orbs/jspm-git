@@ -26,7 +26,7 @@ describe('git registry', function() {
   it('should lookup all package version of a given package from Github', function() {
     this.timeout(5000);
     return git.lookup('angular/bower-angular').then(function(versions) {
-      console.log('versions:', versions, versions.length);
+      expect(versions).to.be.ok;
     });
   });
 
