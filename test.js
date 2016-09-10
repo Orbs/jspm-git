@@ -8,7 +8,7 @@ if (!fs.existsSync('tmpDir')) {
 rimraf.sync('distDir');
 
 var git = new Git({
-  apiVersion: '1.0',
+  apiVersion: '2.0',
   log: true,
   tmpDir: 'tmpDir',
   timeout: 5,
@@ -28,4 +28,3 @@ git.download('angular/bower-angular', 'v1.3.0-build.51+sha.e888dde', '', {}, 'di
     console.log(err);
     console.log('failed');
   });
-
