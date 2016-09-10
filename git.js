@@ -14,6 +14,7 @@ var Promise = require('bluebird');
 var asp = require('bluebird').Promise.promisify;
 var rimraf = require('rimraf');
 var ncp = require('ncp').ncp;
+var mkdirp = require('mkdirp');
 var fs = require('fs');
 var temp = require('temp');
 var semver = require('semver');
@@ -106,13 +107,13 @@ function decodeCredentials(str) {
 
 var getGitVersion = function() {
   return new Promise(function(resolve, reject) {
-    execGit('--version', null, function(err, stdout, stderr) {
+    execGit(['--version'], null, function(err, stdout, stderr) {
       var versionArr;
       if (err) {
         logMsg('Error while reading our the Git version: ' + stderr);
         reject(stderr);
       } else {
-        versionArr = stdout.match(/\d.\d.\d/);
+        versionArr = stdout.match(/\d+.\d+.\d+/);
         if (versionArr.length === 1) {
           resolve(versionArr[0]);
         } else {
@@ -136,18 +137,17 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
       command = ['clone'];
 
       if (shallowclone) {
-        command.push('--depth 1');
+        command.push('--depth', '1');
       }
 
       // Parameters --single-branch and -b are only supported from Git version 1.7.10 or greater
       if (!gitLegacyMode) {
-        command.push('-b ' + branch);
-        command.push('--single-branch');
+        command.push('-b', branch, '--single-branch');
       }
 
-      command = command.concat(['"' + url + '"', repoDir]);
+      command.push(url, repoDir);
 
-      execGit(command.join(' '), execOpt, function(err, stdout, stderr) {
+      execGit(command, execOpt, function(err, stdout, stderr) {
         if (err) {
           var error = new Error(stderr.toString().replace(url, ''));
           error.hideStack = true;
@@ -158,7 +158,7 @@ var cloneGitRepo = function(repoDir, branch, url, execOpt, shallowclone) {
           });
         } else {
           if (gitLegacyMode) {
-            execGit('checkout ' + branch, {cwd: repoDir}, function(err, stdout, stderr) {
+            execGit(['checkout', branch], {cwd: repoDir}, function(err, stdout, stderr) {
               if (err) {
                 logMsg('Error while checking out the git branch: ' + stderr);
                 rimraf(repoDir, function() {
@@ -215,18 +215,23 @@ var readPackageJSON = function(repoDir) {
 var moveRepoToOutDir = function(repoDir, outDir) {
 
   return new Promise(function(resolve, reject) {
-    ncp(repoDir, outDir, {'stopOnErr': true}, function(err) {
+    mkdirp(outDir, function(err) {
       if (err) {
-        logMsg('Error while moving repo to outDir: ' + err);
-        // Make sure the the outDir gets removed
-        rimraf(outDir, function() {
-          reject(err);
-        });
-      } else {
-        rimraf(repoDir, function() {
-          resolve();
-        });
+        return reject(err);
       }
+      ncp(repoDir, outDir, {'stopOnErr': true}, function(err) {
+        if (err) {
+          logMsg('Error while moving repo to outDir: ' + err);
+          // Make sure the the outDir gets removed
+          rimraf(outDir, function() {
+            reject(err);
+          });
+        } else {
+          rimraf(repoDir, function() {
+            resolve();
+         });
+        }
+      });
     });
   });
 };
@@ -432,7 +437,7 @@ GitLocation.prototype = {
     var execOpt = this.execOpt, self = this;
     return new Promise(function(resolve, reject) {
       var remoteString = createGitUrl(self.options.baseurl, repo, self.options.reposuffix, self.auth);
-      execGit('ls-remote "' + remoteString + '" refs/tags/* refs/heads/*', execOpt, function(err, stdout, stderr) {
+      execGit(['ls-remote', remoteString, 'refs/tags/*', 'refs/heads/*'], execOpt, function(err, stdout, stderr) {
         if (err) {
           if (err.toString().indexOf('not found') == -1) {
             // dont show plain text passwords in error

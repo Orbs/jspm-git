@@ -14,8 +14,8 @@
  *   limitations under the License.
  */
 
-var Promise = require('bluebird').Promise
-var exec = require('child_process').exec;
+var Promise = require('bluebird').Promise;
+var execFile = require('child_process').execFile;
 var os = require('os');
 
 function Pool(count) {
@@ -71,7 +71,7 @@ if (process.platform === 'win32') {
   module.exports = function(command, execOpt, callback) {
     return gitPool.execute(function() {
       return new Promise(function(resolve){
-        exec('git ' + command, execOpt, function(err, stdout, stderr){
+        execFile('git', command, execOpt, function(err, stdout, stderr){
           callback(err, stdout, stderr);
           resolve();
         });
@@ -80,6 +80,6 @@ if (process.platform === 'win32') {
   };
 } else {
   module.exports = function(command, execOpt, callback) {
-    exec('git ' + command, execOpt, callback);
+    execFile('git', command, execOpt, callback);
   };
 }
