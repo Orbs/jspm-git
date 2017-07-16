@@ -269,7 +269,7 @@ var GitLocation = function(options, ui) {
 
   this.execOpt = {
     cwd: options.tmpDir,
-    timeout: options.timeout * 1000,
+    timeout: (options.timeout || 0) * 1000,
     killSignal: 'SIGKILL',
     maxBuffer: this.maxRepoSize || 2 * 1024 * 1024,
     env: extend({}, process.env)
